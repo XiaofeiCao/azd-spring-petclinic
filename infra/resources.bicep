@@ -50,6 +50,57 @@ resource logs 'Microsoft.OperationalInsights/workspaces@2023-09-01' = {
   }
 }
 
+resource virtualNetwork 'Microsoft.Network/virtualNetworks@2024-05-01' = {
+  name: 'vnet-${resourceToken}'
+  location: location
+  tags: tags
+  properties: {
+    addressSpace: {
+      addressPrefixes: [
+        '10.42.0.0/16'
+      ]
+    }
+  }
+}
+
+resource networkSecurityGroup 'Microsoft.Network/networkSecurityGroups@2024-05-01' = {
+  name: 'nsg-${resourceToken}'
+  location: location
+  tags: tags
+  properties: {
+    securityRules: [
+      {
+        name: 'AllowHttpHttpsInbound'
+        properties: {
+          priority: 100
+          protocol: 'Tcp'
+          access: 'Allow'
+          direction: 'Inbound'
+          sourcePortRange: '*'
+          sourceAddressPrefix: 'Internet'
+          destinationAddressPrefix: '*'
+          destinationPortRanges: [
+            '80'
+            '443'
+          ]
+        }
+      }
+    ]
+  }
+}
+
+resource acaInfrastructureSubnet 'Microsoft.Network/virtualNetworks/subnets@2024-05-01' = {
+  parent: virtualNetwork
+  name: 'aca-infrastructure'
+  properties: {
+    addressPrefix: '10.42.0.0/23'
+    defaultOutboundAccess: false
+    networkSecurityGroup: {
+      id: networkSecurityGroup.id
+    }
+  }
+}
+
 resource environment 'Microsoft.App/managedEnvironments@2024-03-01' = {
   name: 'cae-${resourceToken}'
   location: location
@@ -61,6 +112,10 @@ resource environment 'Microsoft.App/managedEnvironments@2024-03-01' = {
         customerId: logs.properties.customerId
         sharedKey: logs.listKeys().primarySharedKey
       }
+    }
+    vnetConfiguration: {
+      infrastructureSubnetId: acaInfrastructureSubnet.id
+      internal: false
     }
   }
 }

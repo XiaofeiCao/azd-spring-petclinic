@@ -46,7 +46,13 @@ azd up
 
 H2 is the default and loses application data when the running instance is
 replaced. PostgreSQL keeps data separately. Use a new azd environment to change
-database mode; do not switch an already provisioned environment in place.
+database mode. The template owns the Container Apps virtual network and dedicated
+infrastructure subnet with its attached network security group, so this topology
+requires a fresh azd environment; do not retrofit or switch an already provisioned
+Container Apps environment in place. The subnet disables default outbound access,
+and its network security group allows public inbound HTTP and HTTPS traffic to the
+public Container Apps ingress. PostgreSQL also remains public and is restricted to
+observed Container Apps egress addresses, not private database connectivity.
 
 For a new PostgreSQL environment, supply `SPRING_DATABASE_PASSWORD` through the
 process/CI environment before the first provision, or let the extension generate
@@ -66,6 +72,10 @@ Clean up each deployed environment from its own directory:
 ```text
 azd down --force --purge --no-prompt
 ```
+
+This removes the template-owned virtual network, subnet, and network security
+group with the environment. Container Apps platform-managed networking resources
+may incur charges while provisioned.
 
 Local azd state, including the password, is retained after cleanup; protect it.
 
