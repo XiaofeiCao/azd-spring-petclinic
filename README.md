@@ -1,181 +1,192 @@
-# Spring PetClinic Sample Application [![Build Status](https://github.com/spring-projects/spring-petclinic/actions/workflows/maven-build.yml/badge.svg)](https://github.com/spring-projects/spring-petclinic/actions/workflows/maven-build.yml)[![Build Status](https://github.com/spring-projects/spring-petclinic/actions/workflows/gradle-build.yml/badge.svg)](https://github.com/spring-projects/spring-petclinic/actions/workflows/gradle-build.yml)
+# Spring Petclinic with azd
 
-[![Open in Gitpod](https://gitpod.io/button/open-in-gitpod.svg)](https://gitpod.io/#https://github.com/spring-projects/spring-petclinic) [![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://github.com/codespaces/new?hide_repo_select=true&ref=main&repo=7517918)
+This Azure Developer CLI (`azd`) template deploys the Spring Petclinic sample
+application to Azure Container Apps. The service host is `springbootapp`, while
+the extension ID remains `azure.springboot`. Native azd container services build
+and publish the image; the extension prepares the Maven container and PostgreSQL
+configuration, deploys the template-authored service Bicep module, and waits for
+readiness. The provider has no base target. No deployment hooks or authored
+Dockerfile are required.
 
-## Understanding the Spring Petclinic application with a few diagrams
+> [!IMPORTANT]
+> `azure.springboot` 0.1.0 is an unpublished, unsupported development
+> prototype. It is not available from a public azd extension registry. Build
+> and install the extension from the pinned public source described below.
+> The earlier `azure.springboot` service host is unsupported and has no
+> compatibility alias. `host: springbootapp` requires a matching rebuilt
+> extension bundle.
 
-See the presentation here:  
-[Spring Petclinic Sample Application (legacy slides)](https://speakerdeck.com/michaelisvy/spring-petclinic-sample-application?slide=20)
+## Prerequisites
 
-> **Note:** These slides refer to a legacy, pre–Spring Boot version of Petclinic and may not reflect the current Spring Boot–based implementation.  
-> For up-to-date information, please refer to this repository and its documentation.
+- [Azure Developer CLI](https://aka.ms/azd) 1.37.2 or newer
+- [Git](https://git-scm.com/)
+- [Go](https://go.dev/) 1.26.4
+- Java 17 or newer (full JDK); this repository includes the Maven Wrapper
+- A running Docker-compatible engine
+- Azure Bicep CLI (azd can install it when it is missing)
+- An Azure subscription, only when you are ready to run `azd up`
 
+## Install the prototype extension
 
-## Run Petclinic locally
+The extension source is pinned to
+[`XiaofeiCao/azure-dev@9e095c5`](https://github.com/XiaofeiCao/azure-dev/tree/9e095c5064fb277c05ef7be3d20a8016e2dc66d3/cli/azd/extensions/azure.springboot).
+The pinned module uses the released azd SDK 1.37.2 and does not require a
+patched azd executable.
 
-Spring Petclinic is a [Spring Boot](https://spring.io/guides/gs/spring-boot) application built using [Maven](https://spring.io/guides/gs/maven/) or [Gradle](https://spring.io/guides/gs/gradle/).
-Java 17 or later is required for the build, and the application can run with Java 17 or newer.
+First install the official azd extension developer kit. If you already have a
+source named `dev`, inspect it with `azd extension source list` and only add the
+source below when it is absent or points to the same official URL.
 
-You first need to clone the project locally:
-
-```bash
-git clone https://github.com/spring-projects/spring-petclinic.git
-cd spring-petclinic
-```
-If you are using Maven, you can start the application on the command-line as follows:
-
-```bash
-./mvnw spring-boot:run
-```
-With Gradle, the command is as follows:
-
-```bash
-./gradlew bootRun
-```
-
-You can then access the Petclinic at <http://localhost:8080/>.
-
-<img width="1042" alt="petclinic-screenshot" src="https://cloud.githubusercontent.com/assets/838318/19727082/2aee6d6c-9b8e-11e6-81fe-e889a5ddfded.png">
-
-You can, of course, run Petclinic in your favorite IDE.
-See below for more details.
-
-## Building a Container
-
-There is no `Dockerfile` in this project. You can build a container image (if you have a docker daemon) using the Spring Boot build plugin:
-
-```bash
-./mvnw spring-boot:build-image
+```shell
+azd extension source add -n dev -t url -l https://aka.ms/azd/extensions/registry/dev
+azd extension install microsoft.azd.extensions
 ```
 
-## Running the Container Image
+Then clone the public source at the immutable commit, build a portable bundle,
+and install it.
 
-```bash
-docker images | grep petclinic
-docker run -p 8080:8080 docker.io/library/spring-petclinic:latest
+### PowerShell
+
+```powershell
+git clone --filter=blob:none --sparse https://github.com/XiaofeiCao/azure-dev.git
+Set-Location .\azure-dev
+git sparse-checkout set cli/azd/extensions/azure.springboot
+git checkout --detach 9e095c5064fb277c05ef7be3d20a8016e2dc66d3
+Set-Location .\cli\azd\extensions\azure.springboot
+
+azd x build --skip-install
+$bundle = Join-Path $PWD 'azure.springboot_0.1.0.zip'
+azd x pack --bundle --output $bundle
+azd extension install --force $bundle
 ```
 
-## In case you find a bug/suggested improvement for Spring Petclinic
-
-Our issue tracker is available [here](https://github.com/spring-projects/spring-petclinic/issues).
-
-## Database configuration
-
-In its default configuration, Petclinic uses an in-memory database (H2) which
-gets populated at startup with data. The h2 console is exposed at `http://localhost:8080/h2-console`,
-and it is possible to inspect the content of the database using the `jdbc:h2:mem:<uuid>` URL. The UUID is printed at startup to the console.
-
-A similar setup is provided for MySQL and PostgreSQL if a persistent database configuration is needed. Note that whenever the database type changes, the app needs to run with a different profile: `spring.profiles.active=mysql` for MySQL or `spring.profiles.active=postgres` for PostgreSQL. See the [Spring Boot documentation](https://docs.spring.io/spring-boot/how-to/properties-and-configuration.html#howto.properties-and-configuration.set-active-spring-profiles) for more detail on how to set the active profile.
-
-You can start MySQL or PostgreSQL locally with whatever installer works for your OS or use docker:
+### Bash
 
 ```bash
-docker run -e MYSQL_USER=petclinic -e MYSQL_PASSWORD=petclinic -e MYSQL_ROOT_PASSWORD=root -e MYSQL_DATABASE=petclinic -p 3306:3306 mysql:9.7
+git clone --filter=blob:none --sparse https://github.com/XiaofeiCao/azure-dev.git
+cd azure-dev
+git sparse-checkout set cli/azd/extensions/azure.springboot
+git checkout --detach 9e095c5064fb277c05ef7be3d20a8016e2dc66d3
+cd cli/azd/extensions/azure.springboot
+
+azd x build --skip-install
+bundle="$PWD/azure.springboot_0.1.0.zip"
+azd x pack --bundle --output "$bundle"
+azd extension install --force "$bundle"
 ```
 
-or
+The bundle is self-contained after it is created. `--force` is required when
+replacing an older installed 0.1.0 bundle because the version constraint alone
+cannot distinguish builds with different host metadata. Keep the bundle if you
+need to install the same extension build in another isolated azd configuration.
 
-```bash
-docker run -e POSTGRES_USER=petclinic -e POSTGRES_PASSWORD=petclinic -e POSTGRES_DB=petclinic -p 5432:5432 postgres:18.4
+## Initialize the template
+
+Start each example in its own empty directory. The default branch of this
+repository is the published template.
+
+### H2
+
+```shell
+mkdir petclinic-h2
+cd petclinic-h2
+azd init -t https://github.com/XiaofeiCao/azd-spring-petclinic . -e petclinic-h2 --no-prompt
 ```
 
-Further documentation is provided for [MySQL](https://github.com/spring-projects/spring-petclinic/blob/main/src/main/resources/db/mysql/petclinic_db_setup_mysql.txt)
-and [PostgreSQL](https://github.com/spring-projects/spring-petclinic/blob/main/src/main/resources/db/postgres/petclinic_db_setup_postgres.txt).
+H2 is the default. Its application data is lost when the running instance is
+replaced.
 
-Instead of vanilla `docker` you can also use the provided `docker-compose.yml` file to start the database containers. Each one has a service named after the Spring profile:
+### PostgreSQL
 
-```bash
-docker compose up mysql
+```shell
+mkdir petclinic-postgresql
+cd petclinic-postgresql
+azd init -t https://github.com/XiaofeiCao/azd-spring-petclinic . -e petclinic-postgresql --no-prompt
+azd env set SPRING_DATABASE_TYPE postgresql
 ```
 
-or
+Use a new azd environment to change database mode. The template owns the
+Container Apps virtual network and dedicated infrastructure subnet with its
+attached network security group, so this topology requires a fresh environment;
+do not retrofit or switch an already provisioned Container Apps environment in
+place. The subnet disables default outbound access, and its network security
+group allows public inbound HTTP and HTTPS traffic to the public Container Apps
+ingress. PostgreSQL also remains public and is restricted to observed Container
+Apps egress addresses, not private database connectivity.
 
-```bash
-docker compose up postgres
+For a new PostgreSQL environment, supply `SPRING_DATABASE_PASSWORD` through the
+process or CI environment before the first provision, or let the extension
+generate and persist it locally. Reruns reuse the original password. If local
+secret state is lost, restore the original password from your secret store
+through that process variable before provisioning again; it is never silently
+regenerated or rotated. Do not print, commit, or pass real passwords as
+command-line arguments.
+
+This demo uses the PostgreSQL administrator login, local azd secret state, and a
+native Container Apps secret, not Key Vault or passwordless authentication. If
+replacement changes the observed Container Apps egress addresses, retry
+`azd deploy` to reconcile the PostgreSQL firewall rules. These are demo
+trade-offs, not production guidance. PostgreSQL TLS validates the CA chain using
+the JRE trust store and checks the hostname without a per-user `root.crt` file.
+
+## Deploy and package
+
+Authenticate before using Azure:
+
+```shell
+azd auth login
 ```
 
-## Test Applications
+From an initialized H2 or PostgreSQL directory:
 
-At development time we recommend you use the test applications set up as `main()` methods in `PetClinicIntegrationTests` (using the default H2 database and also adding Spring Boot Devtools), `MySqlTestApplication` and `PostgresIntegrationTests`. These are set up so that you can run the apps in your IDE to get fast feedback and also run the same classes as integration tests against the respective database. The MySql integration tests use Testcontainers to start the database in a Docker container, and the Postgres tests use Docker Compose to do the same thing.
+```shell
+azd up
+```
 
-## Compiling the CSS
+To build the application package locally without provisioning Azure resources:
 
-There is a `petclinic.css` in `src/main/resources/static/resources/css`. It was generated from the `petclinic.scss` source, combined with the [Bootstrap](https://getbootstrap.com/) library. If you make changes to the `scss`, or upgrade Bootstrap, you will need to re-compile the CSS resources using the Maven profile "css", i.e. `./mvnw package -P css`. There is no build profile for Gradle to compile the CSS.
+```shell
+azd package
+```
 
-## Working with Petclinic in your IDE
+Select your Azure subscription and location when prompted by `azd up`, or set
+`AZURE_SUBSCRIPTION_ID` and `AZURE_LOCATION` in the azd environment beforehand.
 
-### Prerequisites
+## Cleanup
 
-The following items should be installed in your system:
+Run cleanup from the initialized environment directory:
 
-- Java 17 or newer (full JDK, not a JRE)
-- [Git command line tool](https://help.github.com/articles/set-up-git)
-- Your preferred IDE
-  - Eclipse with the m2e plugin. Note: when m2e is available, there is a m2 icon in `Help -> About` dialog. If m2e is
-  not there, follow the installation process [here](https://www.eclipse.org/m2e/)
-  - [Spring Tools Suite](https://spring.io/tools) (STS)
-  - [IntelliJ IDEA](https://www.jetbrains.com/idea/)
-  - [VS Code](https://code.visualstudio.com)
+```shell
+azd down --force --purge --no-prompt
+```
 
-### Steps
+This removes the template-owned virtual network, subnet, and network security
+group with the environment. Container Apps platform-managed networking
+resources may incur charges while provisioned.
 
-1. On the command line run:
+Local azd state, including the PostgreSQL password, is retained after cleanup;
+protect it.
 
-    ```bash
-    git clone https://github.com/spring-projects/spring-petclinic.git
-    ```
+## Validation status
 
-1. Inside Eclipse or STS:
+The extension source build, local bundle install, template initialization,
+exact-driver PostgreSQL CA and hostname checks, local packaging, and ARM preview
+have been exercised without Azure provisioning. The current two-literal JDBC
+TLS configuration replaces an earlier attempt that caused PGJDBC to look for a
+missing `/app/.postgresql/root.crt`.
 
-    Open the project via `File -> Import -> Maven -> Existing Maven project`, then select the root directory of the cloned repo.
+An end-to-end Azure run previously reached application image startup, but the
+full updated Azure chain has not yet been rerun. Live PostgreSQL CRUD,
+persistence, password reuse/recovery, and cleanup acceptance remain pending.
+This repository does not claim that the complete cloud lifecycle has passed.
 
-    Then either build on the command line `./mvnw generate-resources` or use the Eclipse launcher (right-click on project and `Run As -> Maven install`) to generate the CSS. Run the application's main method by right-clicking on it and choosing `Run As -> Java Application`.
+## Source and license
 
-1. Inside IntelliJ IDEA:
+Application source is unchanged from
+[`spring-projects/spring-petclinic@500158f`](https://github.com/spring-projects/spring-petclinic/tree/500158f732419217507c7656904b8e6aa1bcc0d6).
+[`source-revision.json`](source-revision.json) records its provenance and
+selected LF-normalized SHA-256 checksums.
 
-    In the main menu, choose `File -> Open` and select the Petclinic [pom.xml](pom.xml). Click on the `Open` button.
-
-    - CSS files are generated from the Maven build. You can build them on the command line `./mvnw generate-resources` or right-click on the `spring-petclinic` project then `Maven -> Generates sources and Update Folders`.
-
-    - A run configuration named `PetClinicApplication` should have been created for you if you're using a recent Ultimate version. Otherwise, run the application by right-clicking on the `PetClinicApplication` main class and choosing `Run 'PetClinicApplication'`.
-
-1. Navigate to the Petclinic
-
-    Visit [http://localhost:8080](http://localhost:8080) in your browser.
-
-## Looking for something in particular?
-
-|Spring Boot Configuration | Class or Java property files  |
-|--------------------------|---|
-|The Main Class | [PetClinicApplication](https://github.com/spring-projects/spring-petclinic/blob/main/src/main/java/org/springframework/samples/petclinic/PetClinicApplication.java) |
-|Properties Files | [application.properties](https://github.com/spring-projects/spring-petclinic/blob/main/src/main/resources) |
-|Caching | [CacheConfiguration](https://github.com/spring-projects/spring-petclinic/blob/main/src/main/java/org/springframework/samples/petclinic/system/CacheConfiguration.java) |
-
-## Interesting Spring Petclinic branches and forks
-
-The Spring Petclinic "main" branch in the [spring-projects](https://github.com/spring-projects/spring-petclinic)
-GitHub org is the "canonical" implementation based on Spring Boot and Thymeleaf. There are
-[quite a few forks](https://spring-petclinic.github.io/docs/forks.html) in the GitHub org
-[spring-petclinic](https://github.com/spring-petclinic). If you are interested in using a different technology stack to implement the Pet Clinic, please join the community there.
-
-## Interaction with other open-source projects
-
-One of the best parts about working on the Spring Petclinic application is that we have the opportunity to work in direct contact with many Open Source projects. We found bugs/suggested improvements on various topics such as Spring, Spring Data, Bean Validation and even Eclipse! In many cases, they've been fixed/implemented in just a few days.
-Here is a list of them:
-
-| Name | Issue |
-|------|-------|
-| Spring JDBC: simplify usage of NamedParameterJdbcTemplate | [SPR-10256](https://github.com/spring-projects/spring-framework/issues/14889) and [SPR-10257](https://github.com/spring-projects/spring-framework/issues/14890) |
-| Bean Validation / Hibernate Validator: simplify Maven dependencies and backward compatibility |[HV-790](https://hibernate.atlassian.net/browse/HV-790) and [HV-792](https://hibernate.atlassian.net/browse/HV-792) |
-| Spring Data: provide more flexibility when working with JPQL queries | [DATAJPA-292](https://github.com/spring-projects/spring-data-jpa/issues/704) |
-
-## Contributing
-
-The [issue tracker](https://github.com/spring-projects/spring-petclinic/issues) is the preferred channel for bug reports, feature requests and submitting pull requests.
-
-For pull requests, editor preferences are available in the [editor config](.editorconfig) for easy use in common text editors. Read more and download plugins at <https://editorconfig.org>. All commits must include a __Signed-off-by__ trailer at the end of each commit message to indicate that the contributor agrees to the Developer Certificate of Origin.
-For additional details, please refer to the blog post [Hello DCO, Goodbye CLA: Simplifying Contributions to Spring](https://spring.io/blog/2025/01/06/hello-dco-goodbye-cla-simplifying-contributions-to-spring).
-
-## License
-
-The Spring PetClinic sample application is released under version 2.0 of the [Apache License](https://www.apache.org/licenses/LICENSE-2.0).
+Spring Petclinic is released under version 2.0 of the Apache License. See
+[`LICENSE.txt`](LICENSE.txt). This template preserves the upstream project
+attribution and license notices.
