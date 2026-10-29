@@ -1,7 +1,7 @@
 name: spring-petclinic
 
 requiredVersions:
-  azd: ">= 1.38.0-beta.1"
+  azd: ">= 1.37.2"
   extensions:
     azure.springboot: ">= 0.1.0"
 
