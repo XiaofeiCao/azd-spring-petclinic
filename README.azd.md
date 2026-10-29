@@ -66,6 +66,8 @@ a native Container Apps secret, not Key Vault or passwordless authentication.
 PostgreSQL has public networking restricted to observed Container Apps egress
 addresses, not private networking. If replacement changes those addresses, retry
 `azd deploy` to reconcile them. These are demo trade-offs, not production guidance.
+PostgreSQL TLS validates the CA chain using the JRE trust store and checks the
+hostname without a per-user `root.crt` file.
 
 Clean up each deployed environment from its own directory:
 

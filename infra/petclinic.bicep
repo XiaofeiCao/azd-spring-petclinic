@@ -96,7 +96,7 @@ resource app 'Microsoft.App/containerApps@2024-03-01' = {
             }
             {
               name: 'SPRING_DATASOURCE_URL'
-              value: 'jdbc:postgresql://${postgresHost}:5432/${postgresDatabase}?sslmode=verify-full'
+              value: 'jdbc:postgresql://${postgresHost}:5432/${postgresDatabase}?sslmode=verify-full&sslfactory=org.postgresql.ssl.DefaultJavaSSLFactory'
             }
             {
               name: 'SPRING_DATASOURCE_USERNAME'
